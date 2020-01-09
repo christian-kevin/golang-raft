@@ -1,0 +1,11 @@
+[[constraint]]
+  name = "go.etcd.io/etcd"
+  version = "3.1.10"
+
+[[constraint]]
+  name = "go.uber.org/zap"
+  branch = "master"
+
+[prune]
+  go-tests = true
+  unused-packages = true

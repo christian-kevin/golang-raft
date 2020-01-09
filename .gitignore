@@ -1,0 +1,5 @@
+.idea/*
+
+raftexample*/*
+vendor/*
+golang-raft
