@@ -1,5 +1,4 @@
-.idea/*
-
+.idea/
+golang-raft
 raftexample*/*
 vendor/*
-golang-raft
