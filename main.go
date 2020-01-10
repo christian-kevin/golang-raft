@@ -16,9 +16,10 @@ package main
 
 import (
 	"flag"
+	"go.etcd.io/etcd/raft/raftpb"
 	"strings"
 
-	"go.etcd.io/etcd/raft/raftpb"
+	"golang-raft/server"
 )
 
 func main() {
@@ -34,12 +35,14 @@ func main() {
 	defer close(confChangeC)
 
 	// raft provides a commit stream for the proposals from the http api
-	var kvs *kvstore
-	getSnapshot := func() ([]byte, error) { return kvs.getSnapshot() }
-	commitC, errorC, snapshotterReady := newRaftNode(*id, strings.Split(*cluster, ","), *join, getSnapshot, proposeC, confChangeC)
+	var kvs *server.Kvstore
+	getSnapshot := func() ([]byte, error) { return kvs.GetSnapshot() }
+	commitC, errorC, snapshotterReady := server.NewRaftNode(*id, strings.Split(*cluster, ","), *join, getSnapshot, proposeC, confChangeC)
 
-	kvs = newKVStore(<-snapshotterReady, proposeC, commitC, errorC)
+	kvs = server.NewKVStore(<-snapshotterReady, proposeC, commitC, errorC)
 
 	// the key-value http handler will propose updates to raft
-	serveHttpKVAPI(kvs, *kvport, confChangeC, errorC)
+	go server.StartRPCServer(kvs, *kvport, confChangeC, errorC)
+
+	server.ServeHttpKVAPI(kvs, 12000, confChangeC, errorC)
 }
