@@ -20,6 +20,8 @@ type Reply struct {
 	Value interface{}
 }
 
+const ReplyStatusOk = "ok"
+
 type CommandHandler struct {
 	store       *Kvstore
 	confChangeC chan<- raftpb.ConfChange
@@ -40,6 +42,7 @@ func (c *CommandHandler) Handle(args *CommandArgs, reply *Reply) error {
 		}
 
 		c.store.Propose(args.Params[0], args.Params[1])
+		reply.Value = ReplyStatusOk
 	case strings.ToLower(args.CommandName) == "get":
 		errMessage := "No sufficient args to set in kv store\n"
 
@@ -65,9 +68,10 @@ func (c *CommandHandler) Handle(args *CommandArgs, reply *Reply) error {
 		cc := raftpb.ConfChange{
 			Type:    raftpb.ConfChangeAddNode,
 			NodeID:  nodeId,
-			Context: []byte(args.Params[1]),
+			Context: []byte("http://127.0.0.1:" + args.Params[1]),
 		}
 		c.confChangeC <- cc
+		reply.Value = ReplyStatusOk
 	case strings.ToLower(args.CommandName) == "kill":
 		errMessage := "No sufficient args to kill a node\n"
 
@@ -86,6 +90,7 @@ func (c *CommandHandler) Handle(args *CommandArgs, reply *Reply) error {
 			NodeID: nodeId,
 		}
 		c.confChangeC <- cc
+		reply.Value = ReplyStatusOk
 	}
 	return nil
 }

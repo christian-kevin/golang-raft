@@ -2,3 +2,4 @@
 golang-raft
 raftexample*/*
 vendor/*
+client/vendor/*

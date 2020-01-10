@@ -103,7 +103,7 @@ func NewRaftNode(id int, peers []string, join bool, getSnapshot func() ([]byte, 
 		snapshotterReady: make(chan *snap.Snapshotter, 1),
 		// rest of structure populated after WAL replay
 	}
-	go rc.startRaft()
+	go rc.startRaft(join)
 	return commitC, errorC, rc.snapshotterReady
 }
 
@@ -257,7 +257,7 @@ func (rc *raftNode) writeError(err error) {
 	rc.node.Stop()
 }
 
-func (rc *raftNode) startRaft() {
+func (rc *raftNode) startRaft(join bool) {
 	if !fileutil.Exist(rc.snapdir) {
 		if err := os.Mkdir(rc.snapdir, 0750); err != nil {
 			log.Fatalf("raftexample: cannot create dir for snapshot (%v)", err)
@@ -283,7 +283,7 @@ func (rc *raftNode) startRaft() {
 		MaxUncommittedEntriesSize: 1 << 30,
 	}
 
-	if oldwal {
+	if oldwal || join {
 		rc.node = raft.RestartNode(c)
 	} else {
 		startPeers := rpeers

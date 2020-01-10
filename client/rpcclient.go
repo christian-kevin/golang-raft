@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"github.com/gookit/color"
 	"golang-raft/server"
 
 	"net/rpc"
@@ -13,20 +14,9 @@ import (
 )
 
 func getNodePort(nodeId int) int {
-	switch {
-	case nodeId == 1:
-		return 13001
-	case nodeId == 2:
-		return 13002
-	case nodeId == 3:
-		return 13003
-	case nodeId == 4:
-		return 13004
-	case nodeId == 5:
-		return 13005
-	}
-
-	return -1
+	portStr := "1300" + strconv.Itoa(nodeId)
+	port, _ := strconv.Atoi(portStr)
+	return port
 }
 
 func main() {
@@ -78,7 +68,12 @@ func main() {
 				break
 			}
 
-			fmt.Println(response.Value)
+			if response.Value == nil {
+				fmt.Println(response.Value)
+				continue
+			}
+
+			color.Red.Println(response.Value.(string))
 		}
 
 	}
