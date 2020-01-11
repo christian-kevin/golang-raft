@@ -32,6 +32,10 @@ func errorParams(message string) error {
 	return errors.New(message)
 }
 
+func getRPCPortString(nodeId int) string {
+	return "1200" + strconv.Itoa(nodeId)
+}
+
 func (c *CommandHandler) Handle(args *CommandArgs, reply *Reply) error {
 	switch {
 	case strings.ToLower(args.CommandName) == "set":
@@ -55,7 +59,7 @@ func (c *CommandHandler) Handle(args *CommandArgs, reply *Reply) error {
 	case strings.ToLower(args.CommandName) == "register":
 		errMessage := "No sufficient args to register new node\n"
 
-		if len(args.Params) != 2 {
+		if len(args.Params) != 1 {
 			return errorParams(errMessage)
 		}
 
@@ -68,7 +72,7 @@ func (c *CommandHandler) Handle(args *CommandArgs, reply *Reply) error {
 		cc := raftpb.ConfChange{
 			Type:    raftpb.ConfChangeAddNode,
 			NodeID:  nodeId,
-			Context: []byte("http://127.0.0.1:" + args.Params[1]),
+			Context: []byte("http://127.0.0.1:" + getRPCPortString(int(nodeId))),
 		}
 		c.confChangeC <- cc
 		reply.Value = ReplyStatusOk
