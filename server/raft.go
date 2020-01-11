@@ -142,6 +142,8 @@ func (rc *raftNode) entriesToApply(ents []raftpb.Entry) (nents []raftpb.Entry) {
 // whether all entries could be published.
 func (rc *raftNode) publishEntries(ents []raftpb.Entry) bool {
 	for i := range ents {
+		isLastEntry := i == len(ents) - 1
+
 		switch ents[i].Type {
 		case raftpb.EntryNormal:
 			if len(ents[i].Data) == 0 {
@@ -156,21 +158,25 @@ func (rc *raftNode) publishEntries(ents []raftpb.Entry) bool {
 			}
 
 		case raftpb.EntryConfChange:
-			var cc raftpb.ConfChange
-			cc.Unmarshal(ents[i].Data)
-			rc.confState = *rc.node.ApplyConfChange(cc)
-			switch cc.Type {
-			case raftpb.ConfChangeAddNode:
-				if len(cc.Context) > 0 {
-					rc.transport.AddPeer(types.ID(cc.NodeID), []string{string(cc.Context)})
+				var cc raftpb.ConfChange
+				cc.Unmarshal(ents[i].Data)
+				if !(!isLastEntry && cc.Type == raftpb.ConfChangeRemoveNode) {
+					rc.confState = *rc.node.ApplyConfChange(cc)
 				}
-			case raftpb.ConfChangeRemoveNode:
-				if cc.NodeID == uint64(rc.id) {
-					log.Println("I've been removed from the cluster! Shutting down.")
-					return false
+				switch cc.Type {
+				case raftpb.ConfChangeAddNode:
+					if len(cc.Context) > 0 {
+						rc.transport.AddPeer(types.ID(cc.NodeID), []string{string(cc.Context)})
+					}
+				case raftpb.ConfChangeRemoveNode:
+					if cc.NodeID == uint64(rc.id) {
+						log.Println("I've been removed from the cluster! Shutting down.")
+						if isLastEntry {
+							return false
+						}
+					}
+					rc.transport.RemovePeer(types.ID(cc.NodeID))
 				}
-				rc.transport.RemovePeer(types.ID(cc.NodeID))
-			}
 		}
 
 		// after commit, update appliedIndex
