@@ -358,11 +358,11 @@ func (rc *raftNode) maybeTriggerSnapshot() {
 	if err != nil {
 		log.Panic(err)
 	}
-	snap, err := rc.raftStorage.CreateSnapshot(rc.appliedIndex, &rc.confState, data)
+	snapshot, err := rc.raftStorage.CreateSnapshot(rc.appliedIndex, &rc.confState, data)
 	if err != nil {
 		panic(err)
 	}
-	if err := rc.saveSnap(snap); err != nil {
+	if err := rc.saveSnap(snapshot); err != nil {
 		panic(err)
 	}
 
@@ -379,13 +379,13 @@ func (rc *raftNode) maybeTriggerSnapshot() {
 }
 
 func (rc *raftNode) serveChannels() {
-	snap, err := rc.raftStorage.Snapshot()
+	snapshot, err := rc.raftStorage.Snapshot()
 	if err != nil {
 		panic(err)
 	}
-	rc.confState = snap.Metadata.ConfState
-	rc.snapshotIndex = snap.Metadata.Index
-	rc.appliedIndex = snap.Metadata.Index
+	rc.confState = snapshot.Metadata.ConfState
+	rc.snapshotIndex = snapshot.Metadata.Index
+	rc.appliedIndex = snapshot.Metadata.Index
 
 	defer rc.wal.Close()
 
@@ -428,13 +428,20 @@ func (rc *raftNode) serveChannels() {
 
 		// store raft entries to wal, then publish over commit channel
 		case rd := <-rc.node.Ready():
-			rc.wal.Save(rd.HardState, rd.Entries)
+			err := rc.wal.Save(rd.HardState, rd.Entries)
+			if err != nil {
+				log.Printf("Failed to save WAL, error: %+v \n", err)
+			}
+
 			if !raft.IsEmptySnap(rd.Snapshot) {
 				rc.saveSnap(rd.Snapshot)
 				rc.raftStorage.ApplySnapshot(rd.Snapshot)
 				rc.publishSnapshot(rd.Snapshot)
 			}
-			rc.raftStorage.Append(rd.Entries)
+			err = rc.raftStorage.Append(rd.Entries)
+			if err != nil {
+				log.Printf("Failed to append entries, error: %+v \n", err)
+			}
 			rc.transport.Send(rd.Messages)
 			if ok := rc.publishEntries(rc.entriesToApply(rd.CommittedEntries)); !ok {
 				rc.stop()
@@ -455,12 +462,12 @@ func (rc *raftNode) serveChannels() {
 }
 
 func (rc *raftNode) serveRaft() {
-	url, err := url.Parse(rc.peers[rc.id-1])
+	urlData, err := url.Parse(rc.peers[rc.id-1])
 	if err != nil {
 		log.Fatalf("raftexample: Failed parsing URL (%v)", err)
 	}
 
-	ln, err := newStoppableListener(url.Host, rc.httpstopc)
+	ln, err := newStoppableListener(urlData.Host, rc.httpstopc)
 	if err != nil {
 		log.Fatalf("raftexample: Failed to listen rafthttp (%v)", err)
 	}

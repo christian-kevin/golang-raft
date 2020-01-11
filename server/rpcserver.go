@@ -91,6 +91,9 @@ func (c *CommandHandler) Handle(args *CommandArgs, reply *Reply) error {
 		}
 		c.confChangeC <- cc
 		reply.Value = ReplyStatusOk
+	case strings.ToLower(args.CommandName) == "snap":
+		snap, _ := c.store.GetSnapshot()
+		reply.Value = string(snap)
 	}
 	return nil
 }
